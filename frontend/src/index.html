@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlaceMe - Placement Portal</title>
+    <meta name="description" content="Campus Placement Portal for managing recruitment drives, applications, and placements">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="/assets/style.css" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Toast Notifications -->
+        <div class="toast-container">
+            <div v-for="toast in toasts" :key="toast.id" class="alert-portal mb-2 fade-in" :class="toast.type" style="min-width:320px;box-shadow:var(--shadow-lg)">
+                <i :class="toast.icon"></i>
+                <span v-text="toast.message"></span>
+            </div>
+        </div>
+
+        <!-- Auth Pages -->
+        <div v-if="!isAuthenticated" class="auth-wrapper">
+            <!-- LOGIN -->
+            <div v-if="currentAuthView==='login'" class="auth-card fade-in">
+                <div class="auth-logo"><i class="bi bi-mortarboard-fill"></i></div>
+                <h2 class="auth-title">Welcome back</h2>
+                <p class="auth-subtitle">Sign in to your PlaceMe account</p>
+                <div v-if="authError" class="alert-portal danger mb-3"><i class="bi bi-exclamation-circle"></i> {{authError}}</div>
+                <form @submit.prevent="login" class="form-portal" style="border:none;padding:0;background:transparent">
+                    <div class="mb-3">
+                        <label class="form-label">Email address</label>
+                        <input type="email" class="form-control" v-model="loginForm.email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" v-model="loginForm.password" placeholder="••••••••" required minlength="6">
+                    </div>
+                    <button type="submit" class="btn btn-portal btn-primary-portal w-100 mb-3" :disabled="loading">
+                        <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                        <span v-else><i class="bi bi-box-arrow-in-right"></i> Sign In</span>
+                    </button>
+                    <p class="text-center mb-0" style="color:var(--text-muted);font-size:0.88rem">
+                        Don't have an account? <a href="#" @click.prevent="currentAuthView='register'" style="color:var(--primary-light)">Create one</a>
+                    </p>
+                </form>
+            </div>
+
+            <!-- REGISTER -->
+            <div v-if="currentAuthView==='register'" class="auth-card fade-in" style="max-width:540px">
+                <div class="auth-logo"><i class="bi bi-person-plus-fill"></i></div>
+                <h2 class="auth-title">Create Account</h2>
+                <p class="auth-subtitle">Join PlaceMe as a student or company</p>
+                <div v-if="authError" class="alert-portal danger mb-3"><i class="bi bi-exclamation-circle"></i> {{authError}}</div>
+                <form @submit.prevent="register" class="form-portal" style="border:none;padding:0;background:transparent">
+                    <div class="mb-3">
+                        <label class="form-label">I am a</label>
+                        <select class="form-select" v-model="registerForm.role" required>
+                            <option value="">Select role...</option>
+                            <option value="student">Student</option>
+                            <option value="company">Company</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email address</label>
+                        <input type="email" class="form-control" v-model="registerForm.email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" v-model="registerForm.password" placeholder="Min 6 characters" required minlength="6">
+                    </div>
+                    <!-- Student fields -->
+                    <div v-if="registerForm.role==='student'">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-control" v-model="registerForm.name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Roll Number</label>
+                                <input type="text" class="form-control" v-model="registerForm.roll_number">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Branch</label>
+                                <select class="form-select" v-model="registerForm.branch">
+                                    <option value="">Select</option>
+                                    <option v-for="b in branches" :value="b" v-text="b"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">CGPA</label>
+                                <input type="number" step="0.01" min="0" max="10" class="form-control" v-model="registerForm.cgpa">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Grad Year</label>
+                                <input type="number" min="2020" max="2035" class="form-control" v-model="registerForm.year">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Company fields -->
+                    <div v-if="registerForm.role==='company'">
+                        <div class="mb-3">
+                            <label class="form-label">Company Name</label>
+                            <input type="text" class="form-control" v-model="registerForm.company_name" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Industry</label>
+                                <input type="text" class="form-control" v-model="registerForm.industry" placeholder="e.g. Technology">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Location</label>
+                                <input type="text" class="form-control" v-model="registerForm.location" placeholder="e.g. Bangalore">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">HR Name</label>
+                                <input type="text" class="form-control" v-model="registerForm.hr_name">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Website</label>
+                                <input type="url" class="form-control" v-model="registerForm.website" placeholder="https://...">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-portal btn-primary-portal w-100 mb-3" :disabled="loading">
+                        <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                        <span v-else><i class="bi bi-person-plus"></i> Create Account</span>
+                    </button>
+                    <p class="text-center mb-0" style="color:var(--text-muted);font-size:0.88rem">
+                        Already have an account? <a href="#" @click.prevent="currentAuthView='login'" style="color:var(--primary-light)">Sign in</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Authenticated App Shell -->
+        <div v-else class="app-wrapper">
+            <!-- Sidebar Overlay (mobile) -->
+            <div class="sidebar-overlay" :class="{show:sidebarOpen}" @click="sidebarOpen=false"></div>
+
+            <!-- Sidebar -->
+            <aside class="sidebar" :class="{show:sidebarOpen}">
+                <div class="sidebar-header">
+                    <div class="sidebar-logo"><i class="bi bi-mortarboard-fill"></i></div>
+                    <div class="sidebar-brand">PlaceMe<small>Placement Portal</small></div>
+                </div>
+                <nav class="sidebar-nav">
+                    <!-- Admin Nav -->
+                    <template v-if="user.role==='admin'">
+                        <div class="sidebar-section-title">Overview</div>
+                        <a class="sidebar-link" :class="{active:currentView==='dashboard'}" @click="navigate('dashboard')"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+                        <div class="sidebar-section-title">Management</div>
+                        <a class="sidebar-link" :class="{active:currentView==='companies'}" @click="navigate('companies')"><i class="bi bi-buildings"></i> Companies <span v-if="pendingCompanies>0" class="sidebar-badge" v-text="pendingCompanies"></span></a>
+                        <a class="sidebar-link" :class="{active:currentView==='students'}" @click="navigate('students')"><i class="bi bi-people"></i> Students</a>
+                        <a class="sidebar-link" :class="{active:currentView==='drives'}" @click="navigate('drives')"><i class="bi bi-briefcase"></i> Placement Drives <span v-if="pendingDrives>0" class="sidebar-badge" v-text="pendingDrives"></span></a>
+                        <a class="sidebar-link" :class="{active:currentView==='applications'}" @click="navigate('applications')"><i class="bi bi-file-earmark-text"></i> Applications</a>
+                        <a class="sidebar-link" :class="{active:currentView==='placements'}" @click="navigate('placements')"><i class="bi bi-trophy"></i> Placements</a>
+                    </template>
+                    <!-- Company Nav -->
+                    <template v-if="user.role==='company'">
+                        <div class="sidebar-section-title">Overview</div>
+                        <a class="sidebar-link" :class="{active:currentView==='dashboard'}" @click="navigate('dashboard')"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+                        <div class="sidebar-section-title">Recruitment</div>
+                        <a class="sidebar-link" :class="{active:currentView==='profile'}" @click="navigate('profile')"><i class="bi bi-building"></i> Company Profile</a>
+                        <a class="sidebar-link" :class="{active:currentView==='my-jobs'}" @click="navigate('my-jobs')"><i class="bi bi-briefcase"></i> Job Postings</a>
+                        <a class="sidebar-link" :class="{active:currentView==='manage-apps'}" @click="navigate('manage-apps')"><i class="bi bi-people"></i> Applications</a>
+                    </template>
+                    <!-- Student Nav -->
+                    <template v-if="user.role==='student'">
+                        <div class="sidebar-section-title">Overview</div>
+                        <a class="sidebar-link" :class="{active:currentView==='dashboard'}" @click="navigate('dashboard')"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+                        <div class="sidebar-section-title">Placement</div>
+                        <a class="sidebar-link" :class="{active:currentView==='browse-jobs'}" @click="navigate('browse-jobs')"><i class="bi bi-search"></i> Browse Jobs</a>
+                        <a class="sidebar-link" :class="{active:currentView==='my-applications'}" @click="navigate('my-applications')"><i class="bi bi-file-earmark-text"></i> My Applications</a>
+                        <a class="sidebar-link" :class="{active:currentView==='my-placements'}" @click="navigate('my-placements')"><i class="bi bi-trophy"></i> Placements</a>
+                        <div class="sidebar-section-title">Account</div>
+                        <a class="sidebar-link" :class="{active:currentView==='profile'}" @click="navigate('profile')"><i class="bi bi-person"></i> My Profile</a>
+                    </template>
+                </nav>
+                <div class="sidebar-footer">
+                    <div class="sidebar-user">
+                        <div class="sidebar-avatar" v-text="userInitials"></div>
+                        <div style="flex:1;min-width:0">
+                            <div class="sidebar-user-name" v-text="userName"></div>
+                            <div class="sidebar-user-role" v-text="user.role"></div>
+                        </div>
+                        <button class="btn-ghost" @click="logout" title="Logout"><i class="bi bi-box-arrow-right"></i></button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <div class="main-content">
+                <!-- Top Navbar -->
+                <header class="top-navbar">
+                    <div class="d-flex align-items-center gap-3">
+                        <button class="btn-ghost d-lg-none" @click="sidebarOpen=!sidebarOpen"><i class="bi bi-list" style="font-size:1.3rem"></i></button>
+                        <span class="brand-text d-none d-md-inline" v-text="viewTitle"></span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="search-box d-none d-md-block" style="width:260px">
+                            <i class="bi bi-search search-icon"></i>
+                            <input type="text" v-model="globalSearch" @keyup.enter="handleGlobalSearch" placeholder="Search...">
+                        </div>
+                        <div class="notif-dropdown">
+                            <button class="btn-ghost" @click="showNotifications=!showNotifications"><i class="bi bi-bell" style="font-size:1.1rem"></i><span v-if="unreadNotifCount>0" class="notif-count" v-text="unreadNotifCount"></span></button>
+                        </div>
+                        <button class="btn-ghost" @click="logout" title="Logout"><i class="bi bi-box-arrow-right"></i></button>
+                    </div>
+                </header>
+
+                <!-- Dynamic Content loaded from component files -->
+                <component :is="currentComponent" ref="activeComponent"></component>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <script src="/components/AdminDashboard.vue.js"></script>
+    <script src="/components/CompanyDashboard.vue.js"></script>
+    <script src="/components/StudentDashboard.vue.js"></script>
+    <script src="/components/AdminCompanies.vue.js"></script>
+    <script src="/components/AdminStudents.vue.js"></script>
+    <script src="/components/AdminDrives.vue.js"></script>
+    <script src="/components/AdminApplications.vue.js"></script>
+    <script src="/components/AdminPlacements.vue.js"></script>
+    <script src="/components/CompanyProfile.vue.js"></script>
+    <script src="/components/CompanyJobs.vue.js"></script>
+    <script src="/components/CompanyApplications.vue.js"></script>
+    <script src="/components/StudentProfile.vue.js"></script>
+    <script src="/components/StudentJobs.vue.js"></script>
+    <script src="/components/StudentApplications.vue.js"></script>
+    <script src="/components/StudentPlacements.vue.js"></script>
+    <script src="/components/App.vue.js"></script>
+</body>
+</html>
